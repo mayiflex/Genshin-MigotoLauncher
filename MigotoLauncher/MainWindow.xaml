@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MigotoLauncher"
         mc:Ignorable="d"
-        Title="MigotoLauncher" Height="125" Width="500">
+        Title="MigotoLauncher" Height="120" Width="500" ResizeMode="CanMinimize">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -15,7 +15,7 @@
         
         <TextBlock Margin="10 0 10 0">3DMigoto Launcher Location</TextBlock>
         
-        <Grid Grid.Row="1" Margin="10 0 10 10">
+        <Grid Grid.Row="1" Margin="10 0 10 5">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="10*"/>
                 <ColumnDefinition Width="*"/>
@@ -28,10 +28,15 @@
         <Grid Grid.Row="2" Margin="10 0 10 10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBlock x:Name="TextBlockAdmin" Grid.Column="0" VerticalAlignment="Center" ToolTip="MitogoLauncher needs to be run as administrator to eliminate the possiblity of detecting ambiguous Genshin launcher processes.&#x0a;If you are experiencing seemingly random launches of 3D Migoto, run MigotoLauncher as Administator.">Checking for Admin privileges..</TextBlock>
-            <Grid Grid.Column="1">
+            <TextBlock VerticalAlignment="Center">Region:</TextBlock>
+            <ComboBox x:Name="ComboBoxRegion" Grid.Column="1" SelectedIndex="0" Margin="5 5 190 5" DropDownClosed="ComboBoxRegion_DropDownClosed">
+                <ComboBoxItem>EU/NA (GenshinImpact.exe)</ComboBoxItem>
+                <ComboBoxItem>CN (YuanShen.exe)</ComboBoxItem>
+            </ComboBox>
+            <Grid Grid.Column="2">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>

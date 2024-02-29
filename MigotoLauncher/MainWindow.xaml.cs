@@ -1,116 +1,57 @@
-﻿using Microsoft.Win32;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
-using System.Security.Principal;
-using System.Text;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
 
 namespace MigotoLauncher {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window {
+        private static readonly string autostartPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "Windows", "Start Menu", "Programs", "Startup", "MigotoLauncher.url");
+        private Settings settings;
         private NotifyIcon notifyIcon = new NotifyIcon();
-        private string settingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MigotoLauncher", "settings.txt");
-        private string autostartPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "Windows", "Start Menu", "Programs", "Startup", "MitogotoLauncher.url");
-        private string migotoPath;
-        private bool isAdmin;
+        private string genshinProcessName;
         private int lastGenshinPID;
+        
 
         public MainWindow() {
             InitializeComponent();
-            IsAdministrator();
-            IsAutostarting();
             SetupNotifyIcon();
-            if (TryLoadMigotoPath() && CheckBoxAutostart.IsChecked == true) {
+
+            settings = Settings.LoadSettings();
+            IsAutostarting();
+            ApplySettings();
+            
+            if (CheckBoxAutostart.IsChecked == true) {
                 this.Hide();
                 notifyIcon.Visible = true;
-            } 
+            }
 
             StartGenshinLauncherDetectionTask();
         }
 
-        public bool TryLoadMigotoPath() {
-            try {
-                migotoPath = File.ReadAllLines(settingsPath)[0];
-                TextBoxMigotoPath.Text = migotoPath;
-                return true;
-            } catch {
-                Directory.CreateDirectory(settingsPath.Substring(0, settingsPath.LastIndexOf(@"\")));
-                if (!File.Exists(settingsPath)) {
-                    File.Create(settingsPath);
-                    return true;
-                }
-                return false;
-            }
-        }
-
-
         public Task StartGenshinLauncherDetectionTask() {
             return Task.Run(() => {
                 while (true) {
-                    Thread.Sleep(2500);
-                    var launcherProcs = Process.GetProcessesByName("launcher");
-                    var genshinProcs = Process.GetProcessesByName("GenshinImpact");
-                    if (launcherProcs.Length == 0 && genshinProcs.Length == 0) continue;
+                    Thread.Sleep(9000);
+                    var genshinProcs = Process.GetProcessesByName(genshinProcessName);
+                    if (genshinProcs.Length == 0) continue;
+                    //prevent multiple 3d migoto starts caused by detecting genshin impact over and over
+                    if (genshinProcs[0].Id == lastGenshinPID) continue;
 
-                    if (launcherProcs.Length >= 1 && isAdmin) { //run as admin to prevent lauches for processes with ambiguous names
-                        foreach (var proc in launcherProcs) {
-                            try { //accessing MainModule requires admin
-                                if (proc.MainModule.FileVersionInfo.FileDescription != "Genshin Impact") continue;
-                                LaunchMigoto();
-                                AwaitGenshinStartOrLauncherClose();
-                                return;
-                            } catch { }
-                        }
-                    } else {
-                        if (genshinProcs.Length > 0) { //prevent multiple 3d migoto starts from detecting genshin impact over and over
-                            if (genshinProcs[0].Id == lastGenshinPID) continue;
-                            lastGenshinPID = genshinProcs[0].Id;
-                        }
-                        LaunchMigoto();
-                        AwaitGenshinStartOrLauncherClose();
-                    }
+                    lastGenshinPID = genshinProcs[0].Id;
+                    LaunchMigoto();
                 }
             });
         }
 
-        public void AwaitGenshinStartOrLauncherClose() {
-            while(true) {
-                Thread.Sleep(10000);
-                var launcherProcs = Process.GetProcessesByName("launcher");
-                if (launcherProcs.Length == 0) return;
-
-                var genshinProcs = Process.GetProcessesByName("GenshinImpact");
-                if (genshinProcs.Length > 1) return;
-            }
-        }
-
         public void LaunchMigoto() {
             ProcessStartInfo startInfo = new ProcessStartInfo();
-            startInfo.FileName = migotoPath;
-            startInfo.WorkingDirectory = migotoPath.Substring(0, migotoPath.LastIndexOf(@"\"));
+            startInfo.FileName = settings.migotoPath;
+            startInfo.WorkingDirectory = settings.migotoPath.Substring(0, settings.migotoPath.LastIndexOf(@"\"));
             Process.Start(startInfo);
         }
 
-        public void IsAdministrator() {
-            var identity = WindowsIdentity.GetCurrent();
-            var principal = new WindowsPrincipal(identity);
-            isAdmin = principal.IsInRole(WindowsBuiltInRole.Administrator);
-
-            if(isAdmin) {
-                TextBlockAdmin.Text = "MigotoLauncher is running with admin privileges.";
-            } else {
-                TextBlockAdmin.Text = "MigotoLauncher is running without admin privileges.";
-            }
-        }
         public void IsAutostarting() {
             try {
                 if (File.Exists(autostartPath)) {
@@ -123,18 +64,71 @@ namespace MigotoLauncher {
             }
         }
 
+        public void ApplySettings() {
+            TextBoxMigotoPath.Text = settings.migotoPath;
+            ComboBoxRegion.SelectedIndex = settings.comboBoxRegionSelectedItemIndex;
+            UpdateGenshinProcessName();
+
+            // update autostart shortcut if file was moved
+            var location = Process.GetCurrentProcess().MainModule.FileName;
+            if (CheckBoxAutostart.IsChecked == true && settings.selfLocation != location) { 
+                settings.selfLocation = Process.GetCurrentProcess().MainModule.FileName;
+                CreateAutostartShortcut();
+            }
+        }
+
+        public void UpdateGenshinProcessName() {
+            switch (ComboBoxRegion.SelectedIndex) {
+                case 0:
+                    genshinProcessName = "GenshinImpact";
+                    break;
+                case 1:
+                    genshinProcessName = "YuanShen";
+                    break;
+            }
+        }
+
+        public void CreateAutostartShortcut() {
+            try {
+                using (StreamWriter writer = new StreamWriter(Path.Combine(autostartPath))) {
+                    string app = Process.GetCurrentProcess().MainModule.FileName;
+                    writer.WriteLine("[InternetShortcut]");
+                    writer.WriteLine("URL=file:///" + app);
+                    writer.WriteLine("IconIndex=0");
+                    string icon = app.Replace('\\', '/');
+                    writer.WriteLine("IconFile=" + icon);
+
+                    settings.selfLocation = app;
+                    settings.Save();
+                }
+            } catch { }
+        }
+        public void SetupNotifyIcon() {
+            notifyIcon.Icon = Properties.Resources.migotolauncher;
+            notifyIcon.Visible = false;
+            notifyIcon.DoubleClick +=
+                delegate (object sender, EventArgs args) {
+                    this.Show();
+                    this.WindowState = WindowState.Normal;
+                };
+        }
+
+        protected override void OnStateChanged(EventArgs e) {
+            if (WindowState == System.Windows.WindowState.Minimized) {
+                this.Hide();
+                notifyIcon.Visible = true;
+            } else {
+                notifyIcon.Visible = false;
+            }
+
+            base.OnStateChanged(e);
+        }
+
+
+
         private void CheckBoxAutostart_Clicked(object sender, RoutedEventArgs e) {
             if (CheckBoxAutostart.IsChecked == true) {
-                try {
-                    using (StreamWriter writer = new StreamWriter(Path.Combine(autostartPath))) {
-                        string app = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
-                        writer.WriteLine("[InternetShortcut]");
-                        writer.WriteLine("URL=file:///" + app);
-                        writer.WriteLine("IconIndex=0");
-                        string icon = app.Replace('\\', '/');
-                        writer.WriteLine("IconFile=" + icon);
-                    }
-                } catch { }
+                CreateAutostartShortcut();
             } else {
                 try {
                     File.Delete(autostartPath);
@@ -147,32 +141,16 @@ namespace MigotoLauncher {
             dialog.Filter = "Executable (*.exe)|*.exe|All files (*.*)|*.*";
             dialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
             if (dialog.ShowDialog() == true) {
-                migotoPath = dialog.FileName;
-                TextBoxMigotoPath.Text = migotoPath;
-                try {
-                    File.WriteAllText(settingsPath, migotoPath);
-                } catch { }
+                settings.migotoPath = dialog.FileName;
+                TextBoxMigotoPath.Text = settings.migotoPath;
+                settings.Save();
             }
         }
 
-        public void SetupNotifyIcon() {
-            notifyIcon.Icon = Properties.Resources.migotolauncher;
-            notifyIcon.Visible = false;
-            notifyIcon.DoubleClick +=
-                delegate (object sender, EventArgs args) {
-                    this.Show();
-                    this.WindowState = WindowState.Normal;
-                };
-        }
-        protected override void OnStateChanged(EventArgs e) {
-            if (WindowState == System.Windows.WindowState.Minimized) {
-                this.Hide();
-                notifyIcon.Visible = true;
-            } else {
-                notifyIcon.Visible = false;
-            }
-                
-            base.OnStateChanged(e);
+        private void ComboBoxRegion_DropDownClosed(object sender, EventArgs e) {
+            UpdateGenshinProcessName();
+            settings.comboBoxRegionSelectedItemIndex = ComboBoxRegion.SelectedIndex;
+            settings.Save();
         }
     }
 }
