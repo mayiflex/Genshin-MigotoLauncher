@@ -22,6 +22,8 @@ namespace MigotoLauncher {
         private string autostartPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "Windows", "Start Menu", "Programs", "Startup", "MitogotoLauncher.url");
         private string migotoPath;
         private bool isAdmin;
+        private int lastGenshinPID;
+
         public MainWindow() {
             InitializeComponent();
             IsAdministrator();
@@ -55,17 +57,27 @@ namespace MigotoLauncher {
             return Task.Run(() => {
                 while (true) {
                     Thread.Sleep(2500);
-                    var procs = Process.GetProcessesByName("launcher");
-                    if (procs.Length == 0) continue;
-                    if (isAdmin) { //run as admin to prevent lauches for processes with ambiguous names
-                        foreach (var proc in procs) {
+                    var launcherProcs = Process.GetProcessesByName("launcher");
+                    var genshinProcs = Process.GetProcessesByName("GenshinImpact");
+                    if (launcherProcs.Length == 0 && genshinProcs.Length == 0) continue;
+
+                    if (launcherProcs.Length >= 1 && isAdmin) { //run as admin to prevent lauches for processes with ambiguous names
+                        foreach (var proc in launcherProcs) {
                             try { //accessing MainModule requires admin
                                 if (proc.MainModule.FileVersionInfo.FileDescription != "Genshin Impact") continue;
+                                LaunchMigoto();
+                                AwaitGenshinStartOrLauncherClose();
+                                return;
                             } catch { }
                         }
+                    } else {
+                        if (genshinProcs.Length > 0) { //prevent multiple 3d migoto starts from detecting genshin impact over and over
+                            if (genshinProcs[0].Id == lastGenshinPID) continue;
+                            lastGenshinPID = genshinProcs[0].Id;
+                        }
+                        LaunchMigoto();
+                        AwaitGenshinStartOrLauncherClose();
                     }
-                    LaunchMigoto();
-                    AwaitGenshinStartOrLauncherClose();
                 }
             });
         }
