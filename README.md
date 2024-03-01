@@ -16,7 +16,7 @@ MigotoLauncher is a utility application designed to facilitate the launching of 
 
 1. **Launch MigotoLauncher**: After downloading, open MigotoLauncher.
 2. **Select 3DMigoto Path**: Click on the "Select" button and navigate to the location of your 3DMigoto executable. Select the executable to set the path.
-3. **Select Region**: Choose the correct Genshin process name from the Combobox.
+3. **Select Region**: Choose the correct Genshin process name from the combo box.
 4. **Autostart with Windows**: Check the "Autostart" box if you wish for MigotoLauncher to start automatically with Windows. This ensures that the launcher is always ready to automatically launch 3DMigoto when you start Genshin Impact.
 
 ### Running the Game
