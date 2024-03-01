@@ -27,7 +27,7 @@ MigotoLauncher is a utility application designed to facilitate the launching of 
 ## Troubleshooting
 
 - **Issues with Autostart**: Verify that the autostart option is correctly enabled and that the shortcut in the Startup folder is not corrupted.
-- **MigotoLauncher disappearing**: Double click the MigotoLauncher icon in your system tray to reopen the app.
+- **MigotoLauncher disappearing**: Double-click the MigotoLauncher icon in your system tray to reopen the app.
 
 ## Support
 
