@@ -28,6 +28,7 @@ MigotoLauncher is a utility application designed to facilitate the launching of 
 
 - **Issues with Autostart**: Verify that the autostart option is correctly enabled and that the shortcut in the Startup folder is not corrupted.
 - **MigotoLauncher disappearing**: Double-click the MigotoLauncher icon in your system tray to reopen the app.
+- **3DMigoto launching too late**: Lower the DetectionMs. Lower numbers have higher CPU usage. So make sure to set it as high as possible, while still getting reliable 3DMigoto starts.
 
 ## Support
 
