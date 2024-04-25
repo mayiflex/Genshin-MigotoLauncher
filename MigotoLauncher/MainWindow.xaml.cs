@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Windows;
+using System.Windows.Input;
 
 namespace MigotoLauncher {
     /// <summary>
@@ -33,7 +35,7 @@ namespace MigotoLauncher {
         public Task StartGenshinLauncherDetectionTask() {
             return Task.Run(() => {
                 while (true) {
-                    Thread.Sleep(9000);
+                    Thread.Sleep(settings.DetectionDelayMs);
                     var genshinProcs = Process.GetProcessesByName(genshinProcessName);
                     if (genshinProcs.Length == 0) continue;
                     //prevent multiple 3d migoto starts caused by detecting genshin impact over and over
@@ -67,6 +69,7 @@ namespace MigotoLauncher {
         public void ApplySettings() {
             TextBoxMigotoPath.Text = settings.migotoPath;
             ComboBoxRegion.SelectedIndex = settings.comboBoxRegionSelectedItemIndex;
+            TextBoxDetectionDelay.Text = settings.DetectionDelayMs.ToString();
             UpdateGenshinProcessName();
 
             // update autostart shortcut if file was moved
@@ -151,6 +154,18 @@ namespace MigotoLauncher {
             UpdateGenshinProcessName();
             settings.comboBoxRegionSelectedItemIndex = ComboBoxRegion.SelectedIndex;
             settings.Save();
+        }
+
+        private void NumberValidationTextBox(object sender, TextCompositionEventArgs e) {
+            Regex regex = new Regex("[^0-9]+");
+            e.Handled = regex.IsMatch(e.Text);
+        }
+
+        private void TextBoxDetectionDelay_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e) {
+            try {
+                settings.DetectionDelayMs = Convert.ToInt32(TextBoxDetectionDelay.Text);
+                settings.Save();
+            } catch { }
         }
     }
 }
